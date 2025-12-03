@@ -18,4 +18,7 @@ export const styles = StyleSheet.create({
     borderRadius: 10,
     color: "white",
   },
+  red : {
+    backgroundColor: "Red"
+  }
 });

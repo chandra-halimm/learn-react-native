@@ -1,16 +1,17 @@
 import Entypo from '@expo/vector-icons/Entypo';
-import { router, Tabs } from "expo-router";
-import * as SecureStore from "expo-secure-store";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Tabs, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-
 
 export default function TabsLayout() {
   const [token, setToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true); 
+  const [loading, setLoading] = useState(true);
+  
+  let router = useRouter();
 
   useEffect(() => {
     const checkToken = async () => {
-      const savedToken = await SecureStore.getItemAsync("token");
+      const savedToken = await AsyncStorage.getItem("token");
       // const savedToken = null
 
       if (!savedToken) {
@@ -26,7 +27,7 @@ export default function TabsLayout() {
   }, []);
 
   if (loading) {
-    return null; // or loading screen
+    return null; 
   }
 
   return (
