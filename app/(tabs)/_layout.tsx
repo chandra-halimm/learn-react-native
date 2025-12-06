@@ -1,61 +1,61 @@
 import Entypo from '@expo/vector-icons/Entypo';
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Tabs, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { Tabs } from "expo-router";
+import { tabLayoutstyles } from "../../style/Style";
 
 export default function TabsLayout() {
-  const [token, setToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  
-  let router = useRouter();
-
-  useEffect(() => {
-    const checkToken = async () => {
-      const savedToken = await AsyncStorage.getItem("token");
-      // const savedToken = null
-
-      if (!savedToken) {
-        router.replace("/auth");
-      } else {
-        setToken(savedToken);
-      }
-
-      setLoading(false);
-    };
-
-    checkToken();
-  }, []);
-
-  if (loading) {
-    return null; 
-  }
-
   return (
-    <Tabs screenOptions={{ headerTitleAlign: "center" }}>
+    <Tabs
+      screenOptions={{
+        headerTitleAlign: "center",
+        tabBarStyle: tabLayoutstyles.tabBar,
+        tabBarActiveTintColor: "#6CC24A",
+        tabBarInactiveTintColor: "#9E9E9E",
+        tabBarLabelStyle: tabLayoutstyles.tabBarLabel,
+        tabBarShowLabel: true,
+        headerStyle: tabLayoutstyles.header,
+        headerTitleStyle: tabLayoutstyles.headerTitle,
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
-          title: "Home",
-          tabBarIcon: ({ color, focused }) =>
-            <Entypo name="home" size={30} color={focused ? color : "grey"} />
+          title: "Beranda",
+          tabBarIcon: ({ color, focused }) => (
+            <Entypo 
+              name="home" 
+              size={24} 
+              color={focused ? "#6CC24A" : "#9E9E9E"} 
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="history"
         options={{
-          title: "History",
-          tabBarIcon: ({ color, focused }) =>
-            <Entypo name="folder" size={24} color={focused ? color : "grey"} />
+          title: "Riwayat",
+          tabBarIcon: ({ color, focused }) => (
+            <Entypo 
+              name="back-in-time" 
+              size={24} 
+              color={focused ? "#6CC24A" : "#9E9E9E"} 
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Profile",
-          tabBarIcon: ({ color, focused }) =>
-            <Entypo name="user" size={24} color={focused ? color : "grey"} />
+          title: "Profil",
+          tabBarIcon: ({ color, focused }) => (
+            <Entypo 
+              name="user" 
+              size={24} 
+              color={focused ? "#6CC24A" : "#9E9E9E"} 
+            />
+          ),
         }}
       />
     </Tabs>
   );
 }
+

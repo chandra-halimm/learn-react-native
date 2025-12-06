@@ -1,230 +1,248 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { Alert, ScrollView, View } from "react-native";
 import {
   Avatar,
   Button,
   Card,
-  Divider,
-  IconButton,
+  Dialog,
+  Paragraph,
   Text,
-  TextInput,
+  TextInput
 } from "react-native-paper";
+import { profileStyles } from "../../style/Style";
 
 export default function Profile() {
-  const router = useRouter();
-
-  const [user, setUser] = useState<any>({
+  const [profile, setProfile] = useState({
     name: "",
     email: "",
-    phone: "",
+    gender: "",
+    job: ""
   });
-
-  // Edit user info
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-
-  // Update password state
+  
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [loading, setLoading] = useState(false);
 
-  const loadUser = async () => {
+  const fetchDataProfile = async () => {
+    setLoading(true);
     try {
-      const data = await AsyncStorage.getItem("user");
-      if (data) {
-        const parsed = JSON.parse(data);
-        setUser(parsed);
-        setName(parsed.name);
-        setEmail(parsed.email);
-        setPhone(parsed.phone ?? "");
+      const token = await AsyncStorage.getItem('token');
+      if (!token) {
+        setLoading(false);
+        return;
       }
-    } catch (e) {
-      console.log("Load user error:", e);
+      
+      const response = await fetch(`${process.env.EXPO_PUBLIC_APPWRITE_ENDPOINT}/api/v1/users/me`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        setProfile({
+          name: data.data.name || "",
+          email: data.data.email || "",
+          gender: data.data.gender || "",
+          job: data.data.job || ""
+        });
+      }
+    } catch (error) {
+      console.log("Error fetching profile:", error);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleUpdateProfile = async () => {
+    setUpdating(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) return;
+      
+      const response = await fetch(`${process.env.EXPO_PUBLIC_APPWRITE_ENDPOINT}/api/v1/users/me`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(profile)
+      });
+      
+      if (response.ok) {
+        Alert.alert("Berhasil", "Profil berhasil diperbarui!");
+      } else {
+        Alert.alert("Gagal", "Gagal memperbarui profil");
+      }
+    } catch (error) {
+      console.log("Error updating profile:", error);
+      Alert.alert("Error", "Terjadi kesalahan");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (newPassword !== confirmPassword) {
+      Alert.alert("Error", "Password baru dan konfirmasi tidak cocok");
+      return;
+    }
+    
+    setChangingPassword(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) return;
+      
+      const response = await fetch(`${process.env.EXPO_PUBLIC_APPWRITE_ENDPOINT}/api/v1/users/change-password`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          current_password: currentPassword,
+          new_password: newPassword
+        })
+      });
+      
+      if (response.ok) {
+        Alert.alert("Berhasil", "Password berhasil diubah!");
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+      } else {
+        Alert.alert("Gagal", "Gagal mengubah password");
+      }
+    } catch (error) {
+      console.log("Error changing password:", error);
+      Alert.alert("Error", "Terjadi kesalahan");
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await AsyncStorage.removeItem('token');
+    setShowLogoutDialog(false);
+    // Navigasi ke halaman login
+    // navigation.replace('auth');
   };
 
   useEffect(() => {
-    loadUser();
+    fetchDataProfile();
   }, []);
 
-  // Save updated info
-  const saveProfile = async () => {
-    const updatedUser = {
-      ...user,
-      name,
-      email,
-      phone,
-    };
-
-    await AsyncStorage.setItem("user", JSON.stringify(updatedUser));
-    setUser(updatedUser);
-
-    Alert.alert("Berhasil ✔", "Profil berhasil diperbarui!");
-  };
-
-  const updatePassword = async () => {
-    if (!newPassword || !confirmPassword) {
-      return Alert.alert("Error", "Password tidak boleh kosong!");
-    }
-    if (newPassword !== confirmPassword) {
-      return Alert.alert("Error", "Password baru tidak cocok!");
-    }
-
-    setLoading(true);
-    try {
-      const token = await AsyncStorage.getItem("token");
-
-      const res = await fetch("http://YOUR_API/update-password", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          old_password: currentPassword,
-          new_password: newPassword,
-        }),
-      });
-
-      const result = await res.json();
-      if (!res.ok) {
-        Alert.alert("Gagal", result.message || "Update password gagal");
-      } else {
-        Alert.alert("Berhasil!", "Password telah diubah 👍");
-      }
-    } catch (e) {
-      Alert.alert("Error", "Server error!");
-    }
-    setLoading(false);
-  };
-
-  const logout = async () => {
-    await AsyncStorage.clear();
-    router.replace("/"); // back to landing/login
-  };
-
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: "#F3F6FA" }}
-      contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
-    >
-      {/* Header */}
-      <View style={{ flexDirection: "row", alignItems: "center" }}>
-        <IconButton icon="arrow-left" onPress={() => router.back()} />
-        <Text style={{ fontSize: 20, fontWeight: "700" }}>Profil</Text>
-      </View>
-
-      {/* Avatar + Info */}
-      <Card
-        mode="elevated"
-        style={{
-          padding: 20,
-          borderRadius: 18,
-          alignItems: "center",
-          marginBottom: 20,
-        }}
-      >
-        <Avatar.Text
-          size={80}
-          label={name?.charAt(0)?.toUpperCase() || "U"}
-          style={{ backgroundColor: "#6CC24A" }}
-        />
-        <Text style={{ fontSize: 18, fontWeight: "700", marginTop: 10 }}>
-          {name || "Nama User"}
-        </Text>
-        <Text style={{ fontSize: 14, color: "#777" }}>{email}</Text>
+    <ScrollView style={profileStyles.container}>
+      {/* Profile Header */}
+      <Card style={profileStyles.profileCard}>
+        <View style={profileStyles.profileHeader}>
+          <Avatar.Text
+            size={80}
+            label={profile.name ? profile.name.charAt(0).toUpperCase() : "U"}
+            style={profileStyles.avatar}
+          />
+          <View style={profileStyles.profileInfo}>
+            <Text style={profileStyles.profileName}>{profile.name || "Nama User"}</Text>
+            <Text style={profileStyles.profileEmail}>{profile.email || "email@example.com"}</Text>
+          </View>
+        </View>
       </Card>
 
-      {/* FORM USER INFO */}
-      <Card
-        mode="elevated"
-        style={{
-          padding: 20,
-          borderRadius: 18,
-          marginBottom: 20,
-        }}
-      >
-        <Text style={{ fontWeight: "700", fontSize: 16, marginBottom: 10 }}>
-          Informasi Pengguna
-        </Text>
-
+      {/* Profile Form */}
+      <Card style={profileStyles.formCard}>
+        <Text style={profileStyles.sectionTitle}>Informasi Pengguna</Text>
+        
         <TextInput
           label="Nama Lengkap"
           mode="outlined"
-          value={name}
-          onChangeText={setName}
-          style={{ marginBottom: 10 }}
+          value={profile.name}
+          onChangeText={(text) => setProfile({...profile, name: text})}
+          style={profileStyles.input}
         />
 
         <TextInput
           label="Email"
           mode="outlined"
+          value={profile.email}
+          onChangeText={(text) => setProfile({...profile, email: text})}
           keyboardType="email-address"
-          value={email}
-          onChangeText={setEmail}
-          style={{ marginBottom: 10 }}
+          style={profileStyles.input}
         />
 
         <TextInput
-          label="No. Telepon"
+          label="Jenis Kelamin"
           mode="outlined"
-          keyboardType="phone-pad"
-          value={phone}
-          onChangeText={setPhone}
-          style={{ marginBottom: 10 }}
+          value={profile.gender}
+          onChangeText={(text) => setProfile({...profile, gender: text})}
+          style={profileStyles.input}
+        />
+
+        <TextInput
+          label="Pekerjaan"
+          mode="outlined"
+          value={profile.job}
+          onChangeText={(text) => setProfile({...profile, job: text})}
+          style={profileStyles.input}
         />
 
         <Button
           mode="contained"
-          onPress={saveProfile}
-          style={{ backgroundColor: "#6CC24A", borderRadius: 10 }}
+          onPress={handleUpdateProfile}
+          loading={updating}
+          disabled={updating}
+          style={profileStyles.button}
         >
           Simpan Profil
         </Button>
       </Card>
 
-      <Divider style={{ marginVertical: 10 }} />
-
-      {/* UPDATE PASSWORD */}
-      <Card mode="elevated" style={{ padding: 20, borderRadius: 18 }}>
-        <Text style={{ fontWeight: "700", fontSize: 16, marginBottom: 16 }}>
-          Ubah Password
-        </Text>
-
+      {/* Password Form */}
+      <Card style={profileStyles.formCard}>
+        <Text style={profileStyles.sectionTitle}>Ubah Password</Text>
+        
         <TextInput
           label="Password saat ini"
           secureTextEntry
           mode="outlined"
           value={currentPassword}
           onChangeText={setCurrentPassword}
-          style={{ marginBottom: 10 }}
+          style={profileStyles.input}
         />
+        
         <TextInput
           label="Password baru"
           secureTextEntry
           mode="outlined"
           value={newPassword}
           onChangeText={setNewPassword}
-          style={{ marginBottom: 10 }}
+          style={profileStyles.input}
         />
+        
         <TextInput
           label="Konfirmasi password"
           secureTextEntry
           mode="outlined"
           value={confirmPassword}
           onChangeText={setConfirmPassword}
-          style={{ marginBottom: 20 }}
+          style={profileStyles.input}
         />
 
         <Button
           mode="contained"
-          loading={loading}
-          onPress={updatePassword}
-          style={{ backgroundColor: "#6CC24A", borderRadius: 10 }}
+          onPress={handleChangePassword}
+          loading={changingPassword}
+          disabled={changingPassword}
+          style={profileStyles.button}
         >
           Simpan Password Baru
         </Button>
@@ -232,13 +250,25 @@ export default function Profile() {
 
       {/* Logout Button */}
       <Button
-        mode="text"
-        textColor="red"
-        onPress={logout}
-        style={{ marginTop: 20 }}
+        mode="outlined"
+        onPress={() => setShowLogoutDialog(true)}
+        style={profileStyles.logoutButton}
+        labelStyle={profileStyles.logoutButtonText}
       >
-        Logout
+        Keluar Akun
       </Button>
+
+      {/* Logout Confirmation Dialog */}
+      <Dialog visible={showLogoutDialog} onDismiss={() => setShowLogoutDialog(false)}>
+        <Dialog.Title>Konfirmasi Logout</Dialog.Title>
+        <Dialog.Content>
+          <Paragraph>Apakah Anda yakin ingin keluar dari akun?</Paragraph>
+        </Dialog.Content>
+        <Dialog.Actions>
+          <Button onPress={() => setShowLogoutDialog(false)}>Batal</Button>
+          <Button onPress={handleLogout}>Keluar</Button>
+        </Dialog.Actions>
+      </Dialog>
     </ScrollView>
   );
 }
